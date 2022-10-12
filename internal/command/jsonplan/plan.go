@@ -28,16 +28,16 @@ const FormatVersion = "1.1"
 
 // Plan is the top-level representation of the json format of a plan. It includes
 // the complete config and current state.
-type plan struct {
+type Plan struct {
 	FormatVersion    string      `json:"format_version,omitempty"`
 	TerraformVersion string      `json:"terraform_version,omitempty"`
 	Variables        variables   `json:"variables,omitempty"`
 	PlannedValues    stateValues `json:"planned_values,omitempty"`
 	// ResourceDrift and ResourceChanges are sorted in a user-friendly order
 	// that is undefined at this time, but consistent.
-	ResourceDrift      []resourceChange  `json:"resource_drift,omitempty"`
-	ResourceChanges    []resourceChange  `json:"resource_changes,omitempty"`
-	OutputChanges      map[string]change `json:"output_changes,omitempty"`
+	ResourceDrift      []ResourceChange  `json:"resource_drift,omitempty"`
+	ResourceChanges    []ResourceChange  `json:"resource_changes,omitempty"`
+	OutputChanges      map[string]Change `json:"output_changes,omitempty"`
 	PriorState         json.RawMessage   `json:"prior_state,omitempty"`
 	Config             json.RawMessage   `json:"configuration,omitempty"`
 	RelevantAttributes []resourceAttr    `json:"relevant_attributes,omitempty"`
@@ -45,8 +45,8 @@ type plan struct {
 	Checks             json.RawMessage   `json:"checks,omitempty"`
 }
 
-func newPlan() *plan {
-	return &plan{
+func newPlan() *Plan {
+	return &Plan{
 		FormatVersion: FormatVersion,
 	}
 }
@@ -59,7 +59,7 @@ type resourceAttr struct {
 }
 
 // Change is the representation of a proposed change for an object.
-type change struct {
+type Change struct {
 	// Actions are the actions that will be taken on the object selected by the
 	// properties below. Valid actions values are:
 	//    ["no-op"]
@@ -211,7 +211,7 @@ func Marshal(
 	return ret, err
 }
 
-func (p *plan) marshalPlanVariables(vars map[string]plans.DynamicValue, decls map[string]*configs.Variable) error {
+func (p *Plan) marshalPlanVariables(vars map[string]plans.DynamicValue, decls map[string]*configs.Variable) error {
 	p.Variables = make(variables, len(vars))
 
 	for k, v := range vars {
@@ -265,11 +265,11 @@ func (p *plan) marshalPlanVariables(vars map[string]plans.DynamicValue, decls ma
 	return nil
 }
 
-func (p *plan) marshalResourceChanges(resources []*plans.ResourceInstanceChangeSrc, schemas *terraform.Schemas) ([]resourceChange, error) {
-	var ret []resourceChange
+func (p *Plan) marshalResourceChanges(resources []*plans.ResourceInstanceChangeSrc, schemas *terraform.Schemas) ([]ResourceChange, error) {
+	var ret []ResourceChange
 
 	for _, rc := range resources {
-		var r resourceChange
+		var r ResourceChange
 		addr := rc.Addr
 		r.Address = addr.String()
 		if !addr.Equal(rc.PrevRunAddr) {
@@ -360,7 +360,7 @@ func (p *plan) marshalResourceChanges(resources []*plans.ResourceInstanceChangeS
 			return nil, err
 		}
 
-		r.Change = change{
+		r.Change = Change{
 			Actions:         actionString(rc.Action.String()),
 			Before:          json.RawMessage(before),
 			After:           json.RawMessage(after),
@@ -434,13 +434,13 @@ func (p *plan) marshalResourceChanges(resources []*plans.ResourceInstanceChangeS
 	return ret, nil
 }
 
-func (p *plan) marshalOutputChanges(changes *plans.Changes) error {
+func (p *Plan) marshalOutputChanges(changes *plans.Changes) error {
 	if changes == nil {
 		// Nothing to do!
 		return nil
 	}
 
-	p.OutputChanges = make(map[string]change, len(changes.Outputs))
+	p.OutputChanges = make(map[string]Change, len(changes.Outputs))
 	for _, oc := range changes.Outputs {
 		changeV, err := oc.Decode()
 		if err != nil {
@@ -496,7 +496,7 @@ func (p *plan) marshalOutputChanges(changes *plans.Changes) error {
 
 		a, _ := ctyjson.Marshal(afterUnknown, afterUnknown.Type())
 
-		c := change{
+		c := Change{
 			Actions:         actionString(oc.Action.String()),
 			Before:          json.RawMessage(before),
 			After:           json.RawMessage(after),
@@ -511,7 +511,7 @@ func (p *plan) marshalOutputChanges(changes *plans.Changes) error {
 	return nil
 }
 
-func (p *plan) marshalCheckResults(results *states.CheckResults) error {
+func (p *Plan) marshalCheckResults(results *states.CheckResults) error {
 	if results == nil {
 		return nil
 	}
@@ -595,7 +595,7 @@ func (p *plan) marshalCheckResults(results *states.CheckResults) error {
 	return nil
 }
 
-func (p *plan) marshalPlannedValues(changes *plans.Changes, schemas *terraform.Schemas) error {
+func (p *Plan) marshalPlannedValues(changes *plans.Changes, schemas *terraform.Schemas) error {
 	// marshal the planned changes into a module
 	plan, err := marshalPlannedValues(changes, schemas)
 	if err != nil {
@@ -613,7 +613,7 @@ func (p *plan) marshalPlannedValues(changes *plans.Changes, schemas *terraform.S
 	return nil
 }
 
-func (p *plan) marshalRelevantAttrs(plan *plans.Plan) error {
+func (p *Plan) marshalRelevantAttrs(plan *plans.Plan) error {
 	for _, ra := range plan.RelevantAttributes {
 		addr := ra.Resource.String()
 		path, err := encodePath(ra.Attr)

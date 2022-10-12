@@ -2,6 +2,7 @@ package views
 
 import (
 	"fmt"
+	"github.com/hashicorp/terraform/internal/command/renderer"
 
 	"github.com/hashicorp/terraform/internal/command/arguments"
 	"github.com/hashicorp/terraform/internal/command/format"
@@ -43,6 +44,47 @@ func NewApply(vt arguments.ViewType, destroy bool, view *View) Apply {
 		panic(fmt.Sprintf("unknown view type %v", vt))
 	}
 }
+
+type apply struct {
+	renderer renderer.Renderer
+
+	destroy      bool
+	inAutomation bool
+
+	countHook *countHook
+}
+
+func (a *apply) ResourceCount(stateOutPath string) {
+	//TODO implement me
+	panic("implement me")
+}
+
+func (a *apply) Outputs(outputValues map[string]*states.OutputValue) {
+	//TODO implement me
+	panic("implement me")
+}
+
+func (a *apply) Operation() Operation {
+	//TODO implement me
+	panic("implement me")
+}
+
+func (a *apply) Hooks() []terraform.Hook {
+	//TODO implement me
+	panic("implement me")
+}
+
+func (a *apply) Diagnostics(diags tfdiags.Diagnostics) {
+	//TODO implement me
+	panic("implement me")
+}
+
+func (a *apply) HelpPrompt() {
+	//TODO implement me
+	panic("implement me")
+}
+
+var _ Apply = (*apply)(nil)
 
 // The ApplyHuman implementation renders human-readable text logs, suitable for
 // a scrolling terminal.

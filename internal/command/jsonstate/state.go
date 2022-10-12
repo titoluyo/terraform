@@ -21,9 +21,9 @@ import (
 // consuming parser.
 const FormatVersion = "1.0"
 
-// state is the top-level representation of the json format of a terraform
+// State is the top-level representation of the json format of a terraform
 // state.
-type state struct {
+type State struct {
 	FormatVersion    string          `json:"format_version,omitempty"`
 	TerraformVersion string          `json:"terraform_version,omitempty"`
 	Values           *stateValues    `json:"values,omitempty"`
@@ -127,8 +127,8 @@ func marshalAttributeValues(value cty.Value) attributeValues {
 }
 
 // newState() returns a minimally-initialized state
-func newState() *state {
-	return &state{
+func newState() *State {
+	return &State{
 		FormatVersion: FormatVersion,
 	}
 }
@@ -161,7 +161,7 @@ func Marshal(sf *statefile.File, schemas *terraform.Schemas) ([]byte, error) {
 	return ret, err
 }
 
-func (jsonstate *state) marshalStateValues(s *states.State, schemas *terraform.Schemas) error {
+func (jsonstate *State) marshalStateValues(s *states.State, schemas *terraform.Schemas) error {
 	var sv stateValues
 	var err error
 
