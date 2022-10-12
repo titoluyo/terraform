@@ -398,7 +398,7 @@ func (p *blockBodyDiffPrinter) writeAttrDiff(name string, attrS *configschema.At
 	}
 
 	if attrS.NestedType != nil {
-		p.writeNestedAttrDiff(name, attrS.NestedType, old, new, nameLen, indent, path, action, showJustNew)
+		p.writeNestedAttrDiff(name, attrS, old, new, nameLen, indent, path, action, showJustNew)
 		return false
 	}
 
@@ -441,8 +441,10 @@ func (p *blockBodyDiffPrinter) writeAttrDiff(name string, attrS *configschema.At
 // writeNestedAttrDiff is responsible for formatting Attributes with NestedTypes
 // in the diff.
 func (p *blockBodyDiffPrinter) writeNestedAttrDiff(
-	name string, objS *configschema.Object, old, new cty.Value,
+	name string, attrWithNestedS *configschema.Attribute, old, new cty.Value,
 	nameLen, indent int, path cty.Path, action plans.Action, showJustNew bool) {
+
+	objS := attrWithNestedS.NestedType
 
 	p.buf.WriteString("\n")
 	p.writeSensitivityWarning(old, new, indent, action, false)
@@ -454,10 +456,21 @@ func (p *blockBodyDiffPrinter) writeNestedAttrDiff(
 	p.buf.WriteString(p.color.Color("[reset]"))
 	p.buf.WriteString(strings.Repeat(" ", nameLen-len(name)))
 
-	if old.HasMark(marks.Sensitive) || new.HasMark(marks.Sensitive) {
-		p.buf.WriteString(" = (sensitive value)")
+	// Then schema of the attribute itself can be marked sensitive, or the values assigned
+	sensitive := attrWithNestedS.Sensitive || old.HasMark(marks.Sensitive) || new.HasMark(marks.Sensitive)
+	if sensitive {
+		p.buf.WriteString(" = (sensitive")
+		if attrWithNestedS.Sensitive {
+			p.buf.WriteRune(')')
+		} else {
+			p.buf.WriteString(" value)")
+		}
 		if p.pathForcesNewResource(path) {
 			p.buf.WriteString(p.color.Color(forcesNewResourceCaption))
+		}
+
+		if new.IsNull() {
+			p.buf.WriteString(p.color.Color("[dark_gray] -> null[reset]"))
 		}
 		return
 	}

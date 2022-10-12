@@ -2164,6 +2164,58 @@ func TestResourceChange_primitiveSet(t *testing.T) {
 	runTestCases(t, testCases)
 }
 
+func TestResourceChange_nested_attributes(t *testing.T) {
+	testCases := map[string]testCase{
+		"creation": {
+			Action: plans.Create,
+			Mode:   addrs.ManagedResourceMode,
+			Before: cty.NullVal(cty.EmptyObject),
+			After: cty.ObjectVal(map[string]cty.Value{
+				"id": cty.UnknownVal(cty.String),
+				"nested_single": cty.ObjectVal(map[string]cty.Value{
+					"attr": cty.StringVal("hello"),
+				}),
+				"nested_list": cty.ListVal([]cty.Value{
+					cty.ObjectVal(map[string]cty.Value{
+						"attr": cty.StringVal("hello"),
+					}),
+				}),
+			}),
+			Schema: &configschema.Block{
+				Attributes: map[string]*configschema.Attribute{
+					"id": {Type: cty.String, Optional: true, Computed: true},
+					"nested_single": {NestedType: &configschema.Object{
+						Attributes: map[string]*configschema.Attribute{
+							"attr": {Type: cty.String, Optional: true},
+						},
+						Nesting: configschema.NestingSingle,
+					}, Optional: true},
+					"nested_list": {NestedType: &configschema.Object{
+						Attributes: map[string]*configschema.Attribute{
+							"attr": {Type: cty.String, Optional: true},
+						},
+						Nesting: configschema.NestingList,
+					}},
+				},
+			},
+			ExpectedOutput: `  # test_instance.example will be created
+  + resource "test_instance" "example" {
+      + id            = (known after apply)
+      + nested_list   = [
+          + {
+              + attr = "hello"
+            },
+        ]
+      + nested_single = {
+          + attr = "hello"
+        }
+    }
+`,
+		},
+	}
+	runTestCases(t, testCases)
+}
+
 func TestResourceChange_map(t *testing.T) {
 	testCases := map[string]testCase{
 		"in-place update - creation": {
@@ -4829,6 +4881,9 @@ func TestResourceChange_sensitiveVariable(t *testing.T) {
 						"another": cty.StringVal("not secret"),
 					}),
 				}),
+				"nested_sensitive": cty.ObjectVal(map[string]cty.Value{
+					"an_attr": cty.StringVal("secret because nested_sensitive is sensitive"),
+				}),
 			}),
 			AfterValMarks: []cty.PathValueMarks{
 				{
@@ -4865,6 +4920,12 @@ func TestResourceChange_sensitiveVariable(t *testing.T) {
 					"map_whole":  {Type: cty.Map(cty.String), Optional: true},
 					"map_key":    {Type: cty.Map(cty.Number), Optional: true},
 					"list_field": {Type: cty.List(cty.String), Optional: true},
+					"nested_sensitive": {NestedType: &configschema.Object{
+						Attributes: map[string]*configschema.Attribute{
+							"an_attr": {Type: cty.String, Optional: true},
+						},
+						Nesting: configschema.NestingSingle,
+					}, Sensitive: true},
 				},
 				BlockTypes: map[string]*configschema.NestedBlock{
 					"nested_block_list": {
@@ -4889,18 +4950,19 @@ func TestResourceChange_sensitiveVariable(t *testing.T) {
 			},
 			ExpectedOutput: `  # test_instance.example will be created
   + resource "test_instance" "example" {
-      + ami        = (sensitive)
-      + id         = "i-02ae66f368e8518a9"
-      + list_field = [
+      + ami              = (sensitive)
+      + id               = "i-02ae66f368e8518a9"
+      + list_field       = [
           + "hello",
           + (sensitive),
           + "!",
         ]
-      + map_key    = {
+      + map_key          = {
           + "breakfast" = 800
           + "dinner"    = (sensitive)
         }
-      + map_whole  = (sensitive)
+      + map_whole        = (sensitive)
+      + nested_sensitive = (sensitive)
 
       + nested_block_list {
           # At least one attribute in this block is (or was) sensitive,
@@ -4945,6 +5007,9 @@ func TestResourceChange_sensitiveVariable(t *testing.T) {
 						"an_attr": cty.StringVal("secretval"),
 					}),
 				}),
+				"nested_sensitive": cty.ObjectVal(map[string]cty.Value{
+					"an_attr": cty.StringVal("secret because nested_sensitive is sensitive"),
+				}),
 			}),
 			After: cty.ObjectVal(map[string]cty.Value{
 				"id":          cty.StringVal("i-02ae66f368e8518a9"),
@@ -4973,6 +5038,9 @@ func TestResourceChange_sensitiveVariable(t *testing.T) {
 					cty.ObjectVal(map[string]cty.Value{
 						"an_attr": cty.StringVal("changed"),
 					}),
+				}),
+				"nested_sensitive": cty.ObjectVal(map[string]cty.Value{
+					"an_attr": cty.StringVal("changed"),
 				}),
 			}),
 			BeforeValMarks: []cty.PathValueMarks{
@@ -5019,6 +5087,12 @@ func TestResourceChange_sensitiveVariable(t *testing.T) {
 					"some_number": {Type: cty.Number, Optional: true},
 					"map_key":     {Type: cty.Map(cty.Number), Optional: true},
 					"map_whole":   {Type: cty.Map(cty.String), Optional: true},
+					"nested_sensitive": {NestedType: &configschema.Object{
+						Attributes: map[string]*configschema.Attribute{
+							"an_attr": {Type: cty.String, Optional: true},
+						},
+						Nesting: configschema.NestingSingle,
+					}, Sensitive: true},
 				},
 				BlockTypes: map[string]*configschema.NestedBlock{
 					"nested_block": {
@@ -5043,15 +5117,15 @@ func TestResourceChange_sensitiveVariable(t *testing.T) {
   ~ resource "test_instance" "example" {
       # Warning: this attribute value will no longer be marked as sensitive
       # after applying this change.
-      ~ ami         = (sensitive)
-        id          = "i-02ae66f368e8518a9"
-      ~ list_field  = [
+      ~ ami              = (sensitive)
+        id               = "i-02ae66f368e8518a9"
+      ~ list_field       = [
             # (1 unchanged element hidden)
             "friends",
           - (sensitive),
           + ".",
         ]
-      ~ map_key     = {
+      ~ map_key          = {
           # Warning: this attribute value will no longer be marked as sensitive
           # after applying this change.
           ~ "dinner"    = (sensitive)
@@ -5059,13 +5133,14 @@ func TestResourceChange_sensitiveVariable(t *testing.T) {
         }
       # Warning: this attribute value will no longer be marked as sensitive
       # after applying this change.
-      ~ map_whole   = (sensitive)
+      ~ map_whole        = (sensitive)
+      ~ nested_sensitive = (sensitive)
       # Warning: this attribute value will no longer be marked as sensitive
       # after applying this change.
-      ~ some_number = (sensitive)
+      ~ some_number      = (sensitive)
       # Warning: this attribute value will no longer be marked as sensitive
       # after applying this change.
-      ~ special     = (sensitive)
+      ~ special          = (sensitive)
 
       # Warning: this block will no longer be marked as sensitive
       # after applying this change.
@@ -5103,6 +5178,9 @@ func TestResourceChange_sensitiveVariable(t *testing.T) {
 				"nested_block_single": cty.ObjectVal(map[string]cty.Value{
 					"an_attr": cty.StringVal("original"),
 				}),
+				"nested_sensitive": cty.ObjectVal(map[string]cty.Value{
+					"an_attr": cty.StringVal("secret because nested_sensitive is sensitive"),
+				}),
 			}),
 			After: cty.ObjectVal(map[string]cty.Value{
 				"id": cty.StringVal("i-02ae66f368e8518a9"),
@@ -5119,6 +5197,9 @@ func TestResourceChange_sensitiveVariable(t *testing.T) {
 					"dinner":    cty.StringVal("pizza"),
 				}),
 				"nested_block_single": cty.ObjectVal(map[string]cty.Value{
+					"an_attr": cty.StringVal("changed"),
+				}),
+				"nested_sensitive": cty.ObjectVal(map[string]cty.Value{
 					"an_attr": cty.StringVal("changed"),
 				}),
 			}),
@@ -5151,6 +5232,12 @@ func TestResourceChange_sensitiveVariable(t *testing.T) {
 					"list_field": {Type: cty.List(cty.String), Optional: true},
 					"map_key":    {Type: cty.Map(cty.Number), Optional: true},
 					"map_whole":  {Type: cty.Map(cty.String), Optional: true},
+					"nested_sensitive": {NestedType: &configschema.Object{
+						Attributes: map[string]*configschema.Attribute{
+							"an_attr": {Type: cty.String, Optional: true},
+						},
+						Nesting: configschema.NestingSingle,
+					}, Sensitive: true},
 				},
 				BlockTypes: map[string]*configschema.NestedBlock{
 					"nested_block_single": {
@@ -5165,13 +5252,13 @@ func TestResourceChange_sensitiveVariable(t *testing.T) {
 			},
 			ExpectedOutput: `  # test_instance.example will be updated in-place
   ~ resource "test_instance" "example" {
-        id         = "i-02ae66f368e8518a9"
-      ~ list_field = [
+        id               = "i-02ae66f368e8518a9"
+      ~ list_field       = [
           - "hello",
           + (sensitive),
             "friends",
         ]
-      ~ map_key    = {
+      ~ map_key          = {
           ~ "breakfast" = 800 -> 700
           # Warning: this attribute value will be marked as sensitive and will not
           # display in UI output after applying this change.
@@ -5179,7 +5266,8 @@ func TestResourceChange_sensitiveVariable(t *testing.T) {
         }
       # Warning: this attribute value will be marked as sensitive and will not
       # display in UI output after applying this change.
-      ~ map_whole  = (sensitive)
+      ~ map_whole        = (sensitive)
+      ~ nested_sensitive = (sensitive)
 
       # Warning: this block will be marked as sensitive and will not
       # display in UI output after applying this change.
@@ -5520,6 +5608,9 @@ func TestResourceChange_sensitiveVariable(t *testing.T) {
 						"another": cty.StringVal("not secret"),
 					}),
 				}),
+				"nested_sensitive": cty.ObjectVal(map[string]cty.Value{
+					"an_attr": cty.StringVal("secret because nested_sensitive is sensitive"),
+				}),
 			}),
 			After: cty.NullVal(cty.EmptyObject),
 			BeforeValMarks: []cty.PathValueMarks{
@@ -5556,6 +5647,12 @@ func TestResourceChange_sensitiveVariable(t *testing.T) {
 					"list_field": {Type: cty.List(cty.String), Optional: true},
 					"map_key":    {Type: cty.Map(cty.Number), Optional: true},
 					"map_whole":  {Type: cty.Map(cty.String), Optional: true},
+					"nested_sensitive": {NestedType: &configschema.Object{
+						Attributes: map[string]*configschema.Attribute{
+							"an_attr": {Type: cty.String, Optional: true},
+						},
+						Nesting: configschema.NestingSingle,
+					}, Sensitive: true},
 				},
 				BlockTypes: map[string]*configschema.NestedBlock{
 					"nested_block_set": {
@@ -5571,17 +5668,18 @@ func TestResourceChange_sensitiveVariable(t *testing.T) {
 			},
 			ExpectedOutput: `  # test_instance.example will be destroyed
   - resource "test_instance" "example" {
-      - ami        = (sensitive) -> null
-      - id         = "i-02ae66f368e8518a9" -> null
-      - list_field = [
+      - ami              = (sensitive) -> null
+      - id               = "i-02ae66f368e8518a9" -> null
+      - list_field       = [
           - "hello",
           - (sensitive),
         ] -> null
-      - map_key    = {
+      - map_key          = {
           - "breakfast" = 800
           - "dinner"    = (sensitive)
         } -> null
-      - map_whole  = (sensitive) -> null
+      - map_whole        = (sensitive) -> null
+      - nested_sensitive = (sensitive) -> null
 
       - nested_block_set {
           # At least one attribute in this block is (or was) sensitive,
@@ -5601,6 +5699,9 @@ func TestResourceChange_sensitiveVariable(t *testing.T) {
 						"an_attr": cty.StringVal("secret"),
 					}),
 				}),
+				"nested_sensitive": cty.ObjectVal(map[string]cty.Value{
+					"an_attr": cty.StringVal("secret because nested_sensitive is sensitive"),
+				}),
 			}),
 			After: cty.ObjectVal(map[string]cty.Value{
 				"id":  cty.StringVal("i-02ae66f368e8518a9"),
@@ -5609,6 +5710,9 @@ func TestResourceChange_sensitiveVariable(t *testing.T) {
 					cty.ObjectVal(map[string]cty.Value{
 						"an_attr": cty.StringVal("changed"),
 					}),
+				}),
+				"nested_sensitive": cty.ObjectVal(map[string]cty.Value{
+					"an_attr": cty.StringVal("changed"),
 				}),
 			}),
 			BeforeValMarks: []cty.PathValueMarks{
@@ -5635,6 +5739,12 @@ func TestResourceChange_sensitiveVariable(t *testing.T) {
 				Attributes: map[string]*configschema.Attribute{
 					"id":  {Type: cty.String, Optional: true, Computed: true},
 					"ami": {Type: cty.String, Optional: true},
+					"nested_sensitive": {NestedType: &configschema.Object{
+						Attributes: map[string]*configschema.Attribute{
+							"an_attr": {Type: cty.String, Optional: true},
+						},
+						Nesting: configschema.NestingSingle,
+					}, Sensitive: true},
 				},
 				BlockTypes: map[string]*configschema.NestedBlock{
 					"nested_block_set": {
@@ -5650,11 +5760,13 @@ func TestResourceChange_sensitiveVariable(t *testing.T) {
 			RequiredReplace: cty.NewPathSet(
 				cty.GetAttrPath("ami"),
 				cty.GetAttrPath("nested_block_set"),
+				cty.GetAttrPath("nested_sensitive"),
 			),
 			ExpectedOutput: `  # test_instance.example must be replaced
 -/+ resource "test_instance" "example" {
-      ~ ami = (sensitive) # forces replacement
-        id  = "i-02ae66f368e8518a9"
+      ~ ami              = (sensitive) # forces replacement
+        id               = "i-02ae66f368e8518a9"
+      ~ nested_sensitive = (sensitive) # forces replacement
 
       ~ nested_block_set { # forces replacement
           # At least one attribute in this block is (or was) sensitive,
