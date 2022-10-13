@@ -2,6 +2,9 @@ package jsonplan
 
 import (
 	"encoding/json"
+	"fmt"
+	"github.com/hashicorp/terraform/internal/plans"
+	"strings"
 
 	"github.com/hashicorp/terraform/internal/addrs"
 )
@@ -89,4 +92,40 @@ type ResourceChange struct {
 	// information should be resilient to encountering unrecognized values
 	// and treat them as an unspecified reason.
 	ActionReason string `json:"action_reason,omitempty"`
+}
+
+func (c ResourceChange) Moved() bool {
+	return len(c.PreviousAddress) > 0 && c.Address != c.PreviousAddress
+}
+
+func (c ResourceChange) Action() plans.Action {
+	if len(c.Change.Actions) == 2 {
+		if c.Change.Actions[0] == "delete" && c.Change.Actions[1] == "create" {
+			return plans.DeleteThenCreate
+		} else if c.Change.Actions[0] == "create" && c.Change.Actions[1] == "delete" {
+			return plans.CreateThenDelete
+		}
+		panic("unrecognized actions in planned change: " + strings.Join(c.Change.Actions, ", "))
+	} else if len(c.Change.Actions) == 0 || len(c.Change.Actions) > 2 {
+		panic(fmt.Sprintf("invalid count of actions in planned change: %d", len(c.Change.Actions)))
+	}
+
+	switch c.Change.Actions[0] {
+	case "create":
+		return plans.Create
+	case "update":
+		return plans.Update
+	case "delete":
+		return plans.Delete
+	case "read":
+		return plans.Read
+	case "no-op":
+		return plans.NoOp
+	default:
+		panic("unrecognized action in planned change: " + c.Change.Actions[0])
+	}
+}
+
+func (c ResourceChange) Mode() plans.Mode {
+
 }

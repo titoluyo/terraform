@@ -6,7 +6,7 @@ import (
 
 type schema struct {
 	Version uint64 `json:"version"`
-	Block   *block `json:"block,omitempty"`
+	Block   *Block `json:"block,omitempty"`
 }
 
 // marshalSchema is a convenience wrapper around mashalBlock. Schema version

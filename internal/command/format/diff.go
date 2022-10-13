@@ -3,7 +3,9 @@ package format
 import (
 	"bufio"
 	"bytes"
+	"encoding/json"
 	"fmt"
+	"github.com/hashicorp/terraform/internal/command/jsonplan"
 	"log"
 	"sort"
 	"strings"
@@ -18,7 +20,6 @@ import (
 	"github.com/hashicorp/terraform/internal/lang/marks"
 	"github.com/hashicorp/terraform/internal/plans"
 	"github.com/hashicorp/terraform/internal/plans/objchange"
-	"github.com/hashicorp/terraform/internal/states"
 )
 
 // DiffLanguage controls the description of the resource change reasons.
@@ -46,12 +47,11 @@ const (
 // If "color" is non-nil, it will be used to color the result. Otherwise,
 // no color codes will be included.
 func ResourceChange(
-	change *plans.ResourceInstanceChange,
+	change *jsonplan.ResourceChange,
 	schema *configschema.Block,
 	color *colorstring.Colorize,
 	language DiffLanguage,
 ) string {
-	addr := change.Addr
 	var buf bytes.Buffer
 
 	if color == nil {
@@ -62,20 +62,20 @@ func ResourceChange(
 		}
 	}
 
-	dispAddr := addr.String()
-	if change.DeposedKey != states.NotDeposed {
-		dispAddr = fmt.Sprintf("%s (deposed object %s)", dispAddr, change.DeposedKey)
+	dispAddr := change.Address
+	if len(change.Deposed) > 0 {
+		dispAddr = fmt.Sprintf("%s (deposed object %s)", dispAddr, change.Deposed)
 	}
 
-	switch change.Action {
+	switch change.Action() {
 	case plans.Create:
 		buf.WriteString(fmt.Sprintf(color.Color("[bold]  # %s[reset] will be created"), dispAddr))
 	case plans.Read:
 		buf.WriteString(fmt.Sprintf(color.Color("[bold]  # %s[reset] will be read during apply"), dispAddr))
 		switch change.ActionReason {
-		case plans.ResourceInstanceReadBecauseConfigUnknown:
+		case plans.ResourceInstanceReadBecauseConfigUnknown.String():
 			buf.WriteString("\n  # (config refers to values not yet known)")
-		case plans.ResourceInstanceReadBecauseDependencyPending:
+		case plans.ResourceInstanceReadBecauseDependencyPending.String():
 			buf.WriteString("\n  # (depends on a resource or a module with changes pending)")
 		}
 	case plans.Update:
@@ -89,11 +89,11 @@ func ResourceChange(
 		}
 	case plans.CreateThenDelete, plans.DeleteThenCreate:
 		switch change.ActionReason {
-		case plans.ResourceInstanceReplaceBecauseTainted:
+		case plans.ResourceInstanceReplaceBecauseTainted.String():
 			buf.WriteString(fmt.Sprintf(color.Color("[bold]  # %s[reset] is tainted, so must be [bold][red]replaced"), dispAddr))
-		case plans.ResourceInstanceReplaceByRequest:
+		case plans.ResourceInstanceReplaceByRequest.String():
 			buf.WriteString(fmt.Sprintf(color.Color("[bold]  # %s[reset] will be [bold][red]replaced[reset], as requested"), dispAddr))
-		case plans.ResourceInstanceReplaceByTriggers:
+		case plans.ResourceInstanceReplaceByTriggers.String():
 			buf.WriteString(fmt.Sprintf(color.Color("[bold]  # %s[reset] will be [bold][red]replaced[reset] due to changes in replace_triggered_by"), dispAddr))
 		default:
 			buf.WriteString(fmt.Sprintf(color.Color("[bold]  # %s[reset] must be [bold][red]replaced"), dispAddr))
@@ -113,20 +113,20 @@ func ResourceChange(
 		// to make the "will be destroyed" message prominent and consistent
 		// in all cases, for easier scanning of this often-risky action.
 		switch change.ActionReason {
-		case plans.ResourceInstanceDeleteBecauseNoResourceConfig:
-			buf.WriteString(fmt.Sprintf("\n  # (because %s is not in configuration)", addr.Resource.Resource))
-		case plans.ResourceInstanceDeleteBecauseNoMoveTarget:
-			buf.WriteString(fmt.Sprintf("\n  # (because %s was moved to %s, which is not in configuration)", change.PrevRunAddr, addr.Resource.Resource))
-		case plans.ResourceInstanceDeleteBecauseNoModule:
+		case plans.ResourceInstanceDeleteBecauseNoResourceConfig.String():
+			buf.WriteString(fmt.Sprintf("\n  # (because %s is not in configuration)", change.Address))
+		case plans.ResourceInstanceDeleteBecauseNoMoveTarget.String():
+			buf.WriteString(fmt.Sprintf("\n  # (because %s was moved to %s, which is not in configuration)", change.PreviousAddress, change.Address))
+		case plans.ResourceInstanceDeleteBecauseNoModule.String():
 			// FIXME: Ideally we'd truncate addr.Module to reflect the earliest
 			// step that doesn't exist, so it's clearer which call this refers
 			// to, but we don't have enough information out here in the UI layer
 			// to decide that; only the "expander" in Terraform Core knows
 			// which module instance keys are actually declared.
-			buf.WriteString(fmt.Sprintf("\n  # (because %s is not in configuration)", addr.Module))
-		case plans.ResourceInstanceDeleteBecauseWrongRepetition:
+			buf.WriteString(fmt.Sprintf("\n  # (because %s is not in configuration)", change.ModuleAddress))
+		case plans.ResourceInstanceDeleteBecauseWrongRepetition.String():
 			// We have some different variations of this one
-			switch addr.Resource.Key.(type) {
+			switch change.Index.(type) {
 			case nil:
 				buf.WriteString("\n  # (because resource uses count or for_each)")
 			case addrs.IntKey:
@@ -134,18 +134,18 @@ func ResourceChange(
 			case addrs.StringKey:
 				buf.WriteString("\n  # (because resource does not use for_each)")
 			}
-		case plans.ResourceInstanceDeleteBecauseCountIndex:
-			buf.WriteString(fmt.Sprintf("\n  # (because index %s is out of range for count)", addr.Resource.Key))
-		case plans.ResourceInstanceDeleteBecauseEachKey:
-			buf.WriteString(fmt.Sprintf("\n  # (because key %s is not in for_each map)", addr.Resource.Key))
+		case plans.ResourceInstanceDeleteBecauseCountIndex.String():
+			buf.WriteString(fmt.Sprintf("\n  # (because index %s is out of range for count)", change.Index))
+		case plans.ResourceInstanceDeleteBecauseEachKey.String():
+			buf.WriteString(fmt.Sprintf("\n  # (because key %s is not in for_each map)", change.Index))
 		}
-		if change.DeposedKey != states.NotDeposed {
+		if len(change.Deposed) > 0 {
 			// Some extra context about this unusual situation.
 			buf.WriteString(color.Color("\n  # (left over from a partially-failed replacement of this instance)"))
 		}
 	case plans.NoOp:
 		if change.Moved() {
-			buf.WriteString(fmt.Sprintf(color.Color("[bold]  # %s[reset] has moved to [bold]%s[reset]"), change.PrevRunAddr.String(), dispAddr))
+			buf.WriteString(fmt.Sprintf(color.Color("[bold]  # %s[reset] has moved to [bold]%s[reset]"), change.PreviousAddress, dispAddr))
 			break
 		}
 		fallthrough
@@ -155,14 +155,14 @@ func ResourceChange(
 	}
 	buf.WriteString(color.Color("[reset]\n"))
 
-	if change.Moved() && change.Action != plans.NoOp {
-		buf.WriteString(fmt.Sprintf(color.Color("  # [reset](moved from %s)\n"), change.PrevRunAddr.String()))
+	if change.Moved() && change.Action() != plans.NoOp {
+		buf.WriteString(fmt.Sprintf(color.Color("  # [reset](moved from %s)\n"), change.PreviousAddress))
 	}
 
-	if change.Moved() && change.Action == plans.NoOp {
+	if action := change.Action(); change.Moved() && action == plans.NoOp {
 		buf.WriteString("    ")
 	} else {
-		buf.WriteString(color.Color(DiffActionSymbol(change.Action)) + " ")
+		buf.WriteString(color.Color(DiffActionSymbol(action)) + " ")
 	}
 
 	switch addr.Resource.Resource.Mode {
@@ -198,7 +198,7 @@ func ResourceChange(
 	// structures.
 	path := make(cty.Path, 0, 3)
 
-	result := p.writeBlockBodyDiff(schema, change.Before, change.After, 6, path)
+	result := p.writeBlockBodyDiff(schema, change.Change.Before, change.Change.After, 6, path)
 	if result.bodyWritten {
 		buf.WriteString("\n")
 		buf.WriteString(strings.Repeat(" ", 4))
@@ -278,7 +278,7 @@ const forcesNewResourceCaption = " [red]# forces replacement[reset]"
 
 // writeBlockBodyDiff writes attribute or block differences
 // and returns true if any differences were found and written
-func (p *blockBodyDiffPrinter) writeBlockBodyDiff(schema *configschema.Block, old, new cty.Value, indent int, path cty.Path) blockBodyDiffResult {
+func (p *blockBodyDiffPrinter) writeBlockBodyDiff(schema *configschema.Block, old, new json.RawMessage, indent int, path cty.Path) blockBodyDiffResult {
 	path = ctyEnsurePathCapacity(path, 1)
 	result := blockBodyDiffResult{}
 
@@ -323,7 +323,7 @@ func (p *blockBodyDiffPrinter) writeBlockBodyDiff(schema *configschema.Block, ol
 
 func (p *blockBodyDiffPrinter) writeAttrsDiff(
 	attrsS map[string]*configschema.Attribute,
-	old, new cty.Value,
+	old, new json.RawMessage,
 	indent int,
 	path cty.Path,
 	result *blockBodyDiffResult) bool {

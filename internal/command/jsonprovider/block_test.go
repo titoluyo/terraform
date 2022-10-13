@@ -13,11 +13,11 @@ import (
 func TestMarshalBlock(t *testing.T) {
 	tests := []struct {
 		Input *configschema.Block
-		Want  *block
+		Want  *Block
 	}{
 		{
 			nil,
-			&block{},
+			&Block{},
 		},
 		{
 			Input: &configschema.Block{
@@ -37,7 +37,7 @@ func TestMarshalBlock(t *testing.T) {
 					},
 				},
 			},
-			Want: &block{
+			Want: &Block{
 				Attributes: map[string]*attribute{
 					"ami": {AttributeType: json.RawMessage(`"string"`), Optional: true, DescriptionKind: "plain"},
 					"id":  {AttributeType: json.RawMessage(`"string"`), Optional: true, Computed: true, DescriptionKind: "plain"},
@@ -45,7 +45,7 @@ func TestMarshalBlock(t *testing.T) {
 				BlockTypes: map[string]*blockType{
 					"network_interface": {
 						NestingMode: "list",
-						Block: &block{
+						Block: &Block{
 							Attributes: map[string]*attribute{
 								"description":  {AttributeType: json.RawMessage(`"string"`), Optional: true, DescriptionKind: "plain"},
 								"device_index": {AttributeType: json.RawMessage(`"string"`), Optional: true, DescriptionKind: "plain"},

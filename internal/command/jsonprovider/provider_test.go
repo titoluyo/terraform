@@ -24,7 +24,7 @@ func TestMarshalProvider(t *testing.T) {
 			testProvider(),
 			&Provider{
 				Provider: &schema{
-					Block: &block{
+					Block: &Block{
 						Attributes: map[string]*attribute{
 							"region": {
 								AttributeType:   json.RawMessage(`"string"`),
@@ -38,7 +38,7 @@ func TestMarshalProvider(t *testing.T) {
 				ResourceSchemas: map[string]*schema{
 					"test_instance": {
 						Version: 42,
-						Block: &block{
+						Block: &Block{
 							Attributes: map[string]*attribute{
 								"id": {
 									AttributeType:   json.RawMessage(`"string"`),
@@ -73,7 +73,7 @@ func TestMarshalProvider(t *testing.T) {
 							},
 							BlockTypes: map[string]*blockType{
 								"network_interface": {
-									Block: &block{
+									Block: &Block{
 										Attributes: map[string]*attribute{
 											"device_index": {
 												AttributeType:   json.RawMessage(`"string"`),
@@ -98,7 +98,7 @@ func TestMarshalProvider(t *testing.T) {
 				DataSourceSchemas: map[string]*schema{
 					"test_data_source": {
 						Version: 3,
-						Block: &block{
+						Block: &Block{
 							Attributes: map[string]*attribute{
 								"id": {
 									AttributeType:   json.RawMessage(`"string"`),
@@ -114,7 +114,7 @@ func TestMarshalProvider(t *testing.T) {
 							},
 							BlockTypes: map[string]*blockType{
 								"network_interface": {
-									Block: &block{
+									Block: &Block{
 										Attributes: map[string]*attribute{
 											"device_index": {
 												AttributeType:   json.RawMessage(`"string"`),

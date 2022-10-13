@@ -4,7 +4,7 @@ import (
 	"github.com/hashicorp/terraform/internal/configs/configschema"
 )
 
-type block struct {
+type Block struct {
 	Attributes      map[string]*attribute `json:"attributes,omitempty"`
 	BlockTypes      map[string]*blockType `json:"block_types,omitempty"`
 	Description     string                `json:"description,omitempty"`
@@ -14,7 +14,7 @@ type block struct {
 
 type blockType struct {
 	NestingMode string `json:"nesting_mode,omitempty"`
-	Block       *block `json:"block,omitempty"`
+	Block       *Block `json:"block,omitempty"`
 	MinItems    uint64 `json:"min_items,omitempty"`
 	MaxItems    uint64 `json:"max_items,omitempty"`
 }
@@ -32,12 +32,12 @@ func marshalBlockTypes(nestedBlock *configschema.NestedBlock) *blockType {
 	return ret
 }
 
-func marshalBlock(configBlock *configschema.Block) *block {
+func marshalBlock(configBlock *configschema.Block) *Block {
 	if configBlock == nil {
-		return &block{}
+		return &Block{}
 	}
 
-	ret := block{
+	ret := Block{
 		Deprecated:      configBlock.Deprecated,
 		Description:     configBlock.Description,
 		DescriptionKind: marshalStringKind(configBlock.DescriptionKind),

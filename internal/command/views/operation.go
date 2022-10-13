@@ -3,6 +3,7 @@ package views
 import (
 	"bytes"
 	"fmt"
+	"github.com/hashicorp/terraform/internal/command/renderer"
 	"strings"
 
 	"github.com/hashicorp/terraform/internal/addrs"
@@ -38,6 +39,58 @@ func NewOperation(vt arguments.ViewType, inAutomation bool, view *View) Operatio
 		panic(fmt.Sprintf("unknown view type %v", vt))
 	}
 }
+
+type operation struct {
+	renderer renderer.Renderer
+}
+
+func (o *operation) Interrupted() {
+	o.renderer.Log(interrupted)
+}
+
+func (o *operation) FatalInterrupt() {
+	o.renderer.ErrorLog(fatalInterrupt)
+}
+
+func (o *operation) Stopping() {
+	o.renderer.Log("Stopping operation...")
+}
+
+func (o *operation) Cancelled(planMode plans.Mode) {
+	switch planMode {
+	case plans.DestroyMode:
+		o.renderer.Log("Destroy cancelled.")
+	default:
+		o.renderer.Log("Apply cancelled.")
+	}
+}
+
+func (o *operation) EmergencyDumpState(stateFile *statefile.File) error {
+	//TODO implement me
+	panic("implement me")
+}
+
+func (o *operation) PlannedChange(change *plans.ResourceInstanceChangeSrc) {
+	//TODO implement me
+	panic("implement me")
+}
+
+func (o *operation) Plan(plan *plans.Plan, schemas *terraform.Schemas) {
+	//TODO implement me
+	panic("implement me")
+}
+
+func (o *operation) PlanNextStep(planPath string) {
+	//TODO implement me
+	panic("implement me")
+}
+
+func (o *operation) Diagnostics(diags tfdiags.Diagnostics) {
+	//TODO implement me
+	panic("implement me")
+}
+
+var _ Operation = (*operation)(nil)
 
 type OperationHuman struct {
 	view *View
