@@ -411,11 +411,11 @@ new line
 			ExpectedOutput: `  # test_instance.example will be created
   + resource "test_instance" "example" {
       + conn_info = {
-          + password = (sensitive value)
+          + password = (sensitive)
           + user     = "not-secret"
         }
       + id        = (known after apply)
-      + password  = (sensitive value)
+      + password  = (sensitive)
     }
 `,
 		},
@@ -2212,6 +2212,93 @@ func TestResourceChange_nested_attributes(t *testing.T) {
     }
 `,
 		},
+		"deletion": {
+			Action: plans.Delete,
+			Mode:   addrs.ManagedResourceMode,
+			Before: cty.ObjectVal(map[string]cty.Value{
+				"id": cty.UnknownVal(cty.String),
+				"nested_single": cty.ObjectVal(map[string]cty.Value{
+					"attr": cty.StringVal("hello"),
+				}),
+				"nested_list": cty.ListVal([]cty.Value{
+					cty.ObjectVal(map[string]cty.Value{
+						"attr": cty.StringVal("hello"),
+					}),
+				}),
+			}),
+			After: cty.NullVal(cty.EmptyObject),
+			Schema: &configschema.Block{
+				Attributes: map[string]*configschema.Attribute{
+					"id": {Type: cty.String, Optional: true, Computed: true},
+					"nested_single": {NestedType: &configschema.Object{
+						Attributes: map[string]*configschema.Attribute{
+							"attr": {Type: cty.String, Optional: true},
+						},
+						Nesting: configschema.NestingSingle,
+					}, Optional: true},
+					"nested_list": {NestedType: &configschema.Object{
+						Attributes: map[string]*configschema.Attribute{
+							"attr": {Type: cty.String, Optional: true},
+						},
+						Nesting: configschema.NestingList,
+					}},
+				},
+			},
+			ExpectedOutput: `  # test_instance.example will be destroyed
+  - resource "test_instance" "example" {
+      - id            = (known after apply) -> null
+      - nested_list   = [
+          - {
+              - attr = "hello" -> null
+            },
+        ] -> null
+      - nested_single = {
+          - attr = "hello" -> null
+        } -> null
+    }
+`,
+		},
+		"force replacement with changed after subattr": {
+			Action:       plans.DeleteThenCreate,
+			ActionReason: plans.ResourceInstanceReplaceBecauseCannotUpdate,
+			Mode:         addrs.ManagedResourceMode,
+			Before: cty.ObjectVal(map[string]cty.Value{
+				"id": cty.StringVal("id"),
+				"nested_single": cty.ObjectVal(map[string]cty.Value{
+					"attr": cty.StringVal("hello"),
+				}),
+			}),
+			After: cty.ObjectVal(map[string]cty.Value{
+				"id": cty.StringVal("id"),
+				"nested_single": cty.ObjectVal(map[string]cty.Value{
+					"attr": cty.StringVal("changed"),
+				}),
+			}),
+			Schema: &configschema.Block{
+				Attributes: map[string]*configschema.Attribute{
+					"id": {Type: cty.String, Optional: true, Computed: true},
+					"nested_single": {NestedType: &configschema.Object{
+						Attributes: map[string]*configschema.Attribute{
+							"attr": {Type: cty.String, Optional: true},
+						},
+						Nesting: configschema.NestingSingle,
+					}, Optional: true},
+				},
+			},
+			RequiredReplace: cty.NewPathSet(cty.Path{
+				cty.GetAttrStep{Name: "nested_single"},
+			}, cty.Path{
+				cty.GetAttrStep{Name: "nested_list"},
+			}),
+			ExpectedOutput: `  # test_instance.example must be replaced
+-/+ resource "test_instance" "example" {
+        id            = "id"
+      ~ nested_single = { # forces replacement
+          ~ attr = "hello" -> "changed"
+        }
+    }
+`,
+		},
 	}
 	runTestCases(t, testCases)
 }
@@ -3100,7 +3187,7 @@ func TestResourceChange_nestedSet(t *testing.T) {
 			ExpectedOutput: `  # test_instance.example will be created
   + resource "test_instance" "example" {
       + ami   = "ami-AFTER"
-      + disks = (sensitive value)
+      + disks = (sensitive)
       + id    = "i-02ae66f368e8518a9"
 
       + root_block_device {
@@ -3198,7 +3285,7 @@ func TestResourceChange_nestedSet(t *testing.T) {
       ~ ami   = "ami-BEFORE" -> "ami-AFTER"
       # Warning: this attribute value will be marked as sensitive and will not
       # display in UI output after applying this change.
-      ~ disks = (sensitive value)
+      ~ disks = (sensitive)
         id    = "i-02ae66f368e8518a9"
 
       + root_block_device {
@@ -3249,7 +3336,7 @@ func TestResourceChange_nestedSet(t *testing.T) {
       ~ ami   = "ami-BEFORE" -> "ami-AFTER"
       # Warning: this attribute value will be marked as sensitive and will not
       # display in UI output after applying this change. The value is unchanged.
-      ~ disks = (sensitive value)
+      ~ disks = (sensitive)
         id    = "i-02ae66f368e8518a9"
     }
 `,
@@ -5797,7 +5884,7 @@ func TestResourceChange_sensitiveVariable(t *testing.T) {
 			),
 			ExpectedOutput: `  # test_instance.example must be replaced
 -/+ resource "test_instance" "example" {
-      ~ ami = (sensitive value) # forces replacement
+      ~ ami = (sensitive) # forces replacement
         id  = "i-02ae66f368e8518a9"
     }
 `,
@@ -5840,7 +5927,7 @@ func TestResourceChange_sensitiveVariable(t *testing.T) {
 			ExpectedOutput: `  # test_instance.example must be replaced
 -/+ resource "test_instance" "example" {
       ~ conn_info = { # forces replacement
-          ~ password = (sensitive value)
+          ~ password = (sensitive)
             # (1 unchanged attribute hidden)
         }
         id        = "i-02ae66f368e8518a9"
@@ -6097,7 +6184,7 @@ func TestOutputChanges(t *testing.T) {
 			},
 			`
   ~ a = 1 -> 2
-  ~ b = (sensitive value)
+  ~ b = (sensitive)
   ~ c = false -> true`,
 		},
 	}

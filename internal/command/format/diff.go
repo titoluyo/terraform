@@ -416,7 +416,7 @@ func (p *blockBodyDiffPrinter) writeAttrDiff(name string, attrS *configschema.At
 	p.buf.WriteString(" = ")
 
 	if attrS.Sensitive {
-		p.buf.WriteString("(sensitive value)")
+		p.buf.WriteString("(sensitive)")
 		if p.pathForcesNewResource(path) {
 			p.buf.WriteString(p.color.Color(forcesNewResourceCaption))
 		}
@@ -459,12 +459,8 @@ func (p *blockBodyDiffPrinter) writeNestedAttrDiff(
 	// Then schema of the attribute itself can be marked sensitive, or the values assigned
 	sensitive := attrWithNestedS.Sensitive || old.HasMark(marks.Sensitive) || new.HasMark(marks.Sensitive)
 	if sensitive {
-		p.buf.WriteString(" = (sensitive")
-		if attrWithNestedS.Sensitive {
-			p.buf.WriteRune(')')
-		} else {
-			p.buf.WriteString(" value)")
-		}
+		p.buf.WriteString(" = (sensitive)")
+
 		if p.pathForcesNewResource(path) {
 			p.buf.WriteString(p.color.Color(forcesNewResourceCaption))
 		}
@@ -487,6 +483,12 @@ func (p *blockBodyDiffPrinter) writeNestedAttrDiff(
 		p.buf.WriteString("\n")
 		p.buf.WriteString(strings.Repeat(" ", indent+2))
 		p.buf.WriteString("}")
+
+		if !new.IsKnown() {
+			p.buf.WriteString(" -> (known after apply)")
+		} else if new.IsNull() {
+			p.buf.WriteString(p.color.Color("[dark_gray] -> null[reset]"))
+		}
 
 	case configschema.NestingList:
 		p.buf.WriteString(" = [")
@@ -571,6 +573,8 @@ func (p *blockBodyDiffPrinter) writeNestedAttrDiff(
 
 		if !new.IsKnown() {
 			p.buf.WriteString(" -> (known after apply)")
+		} else if new.IsNull() {
+			p.buf.WriteString(p.color.Color("[dark_gray] -> null[reset]"))
 		}
 
 	case configschema.NestingSet:
