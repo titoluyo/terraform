@@ -13,10 +13,10 @@ import (
 	"github.com/hashicorp/terraform/internal/earlyconfig"
 
 	version "github.com/hashicorp/go-version"
-	"github.com/hashicorp/terraform-config-inspect/tfconfig"
 	"github.com/hashicorp/terraform/internal/modsdir"
 	"github.com/hashicorp/terraform/internal/registry"
 	"github.com/hashicorp/terraform/internal/tfdiags"
+	"github.com/titoluyo/terraform-config-inspect/tfconfig"
 )
 
 const initFromModuleRootCallName = "root"

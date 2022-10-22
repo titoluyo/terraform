@@ -7,12 +7,18 @@ SOURCE="${BASH_SOURCE[0]}"
 while [ -h "$SOURCE" ] ; do SOURCE="$(readlink "$SOURCE")"; done
 DIR="$( cd -P "$( dirname "$SOURCE" )/.." && pwd )"
 
+echo "DIR: $DIR"
+
 # Change into that directory
 cd "$DIR"
 
+# # Determine the arch/os combos we're building for
+# XC_ARCH=${XC_ARCH:-"386 amd64 arm"}
+# XC_OS=${XC_OS:-linux darwin windows freebsd openbsd solaris}
+# XC_EXCLUDE_OSARCH="!darwin/arm !darwin/386"
 # Determine the arch/os combos we're building for
-XC_ARCH=${XC_ARCH:-"386 amd64 arm"}
-XC_OS=${XC_OS:-linux darwin windows freebsd openbsd solaris}
+XC_ARCH=${XC_ARCH:-"amd64"}
+XC_OS=${XC_OS:-linux}
 XC_EXCLUDE_OSARCH="!darwin/arm !darwin/386"
 
 # Delete the old dir
@@ -22,11 +28,13 @@ rm -rf pkg/*
 mkdir -p bin/
 
 # If its dev mode, only build for ourself
+echo "checking TF_DEV: $TF_DEV"
 if [[ -n "${TF_DEV}" ]]; then
     XC_OS=$(go env GOOS)
     XC_ARCH=$(go env GOARCH)
 fi
 
+echo "checking gox"
 if ! which gox > /dev/null; then
     echo "==> Installing gox..."
     go get github.com/mitchellh/gox
@@ -39,12 +47,14 @@ export CGO_ENABLED=0
 export GOFLAGS="-mod=readonly"
 
 # In release mode we don't want debug information in the binary
+echo "checking TF_RELEASE: $TF_RELEASE"
 if [[ -n "${TF_RELEASE}" ]]; then
     LD_FLAGS="-s -w"
 fi
 
 # Ensure all remote modules are downloaded and cached before build so that
 # the concurrent builds launched by gox won't race to redundantly download them.
+echo "==> Downloading dependencies..."
 go mod download
 
 # Build!

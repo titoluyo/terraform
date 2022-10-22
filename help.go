@@ -44,6 +44,7 @@ func helpFunc(commands map[string]cli.CommandFactory) string {
 	// website/source/docs/cli/commands/index.html.markdown; if you
 	// change this then consider updating that to match.
 	helpText := fmt.Sprintf(`
+(compiled by titoluyomurata)
 Usage: terraform [global options] <subcommand> [args]
 
 The available commands for execution are listed below.

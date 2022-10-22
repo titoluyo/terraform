@@ -4,10 +4,10 @@ import (
 	"fmt"
 
 	version "github.com/hashicorp/go-version"
-	"github.com/hashicorp/terraform-config-inspect/tfconfig"
 	"github.com/hashicorp/terraform/internal/earlyconfig"
 	"github.com/hashicorp/terraform/internal/modsdir"
 	"github.com/hashicorp/terraform/internal/tfdiags"
+	"github.com/titoluyo/terraform-config-inspect/tfconfig"
 )
 
 // LoadConfig loads a full configuration tree that has previously had all of

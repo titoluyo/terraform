@@ -8,7 +8,6 @@ import (
 	"strings"
 
 	version "github.com/hashicorp/go-version"
-	"github.com/hashicorp/terraform-config-inspect/tfconfig"
 	"github.com/hashicorp/terraform/internal/addrs"
 	"github.com/hashicorp/terraform/internal/earlyconfig"
 	"github.com/hashicorp/terraform/internal/modsdir"
@@ -16,6 +15,7 @@ import (
 	"github.com/hashicorp/terraform/internal/registry/regsrc"
 	"github.com/hashicorp/terraform/internal/registry/response"
 	"github.com/hashicorp/terraform/internal/tfdiags"
+	"github.com/titoluyo/terraform-config-inspect/tfconfig"
 )
 
 type ModuleInstaller struct {
@@ -74,7 +74,7 @@ func NewModuleInstaller(modsDir string, reg *registry.Client) *ModuleInstaller {
 // first return value is the early configuration tree that was constructed by
 // the installation process.
 func (i *ModuleInstaller) InstallModules(rootDir string, upgrade bool, hooks ModuleInstallHooks) (*earlyconfig.Config, tfdiags.Diagnostics) {
-	log.Printf("[TRACE] ModuleInstaller: installing child modules for %s into %s", rootDir, i.modsDir)
+	log.Printf("[TRACE] (tlm|begin) ModuleInstaller: installing child modules for %s into %s", rootDir, i.modsDir)
 
 	rootMod, diags := earlyconfig.LoadModule(rootDir)
 	if rootMod == nil {
@@ -94,7 +94,7 @@ func (i *ModuleInstaller) InstallModules(rootDir string, upgrade bool, hooks Mod
 	getter := reusingGetter{}
 	cfg, instDiags := i.installDescendentModules(rootMod, rootDir, manifest, upgrade, hooks, getter)
 	diags = append(diags, instDiags...)
-
+	log.Printf("[TRACE] (TLM|end) ModuleInstaller: installed child modules for %s into %s", rootDir, i.modsDir)
 	return cfg, diags
 }
 
@@ -201,6 +201,7 @@ func (i *ModuleInstaller) installDescendentModules(rootMod *tfconfig.Module, roo
 				log.Printf("[TRACE] ModuleInstaller: %s has local path %q", key, req.SourceAddr)
 				mod, mDiags := i.installLocalModule(req, key, manifest, hooks)
 				diags = append(diags, mDiags...)
+				log.Printf("[TRACE] (TLM) ModuleInstaller: %s 'installLocalModule' has finished successfuly", key)
 				return mod, nil, diags
 
 			case isRegistrySourceAddr(req.SourceAddr):
@@ -235,7 +236,7 @@ func (i *ModuleInstaller) installDescendentModules(rootMod *tfconfig.Module, roo
 			fmt.Sprintf("Unable to write the module manifest file: %s", err),
 		))
 	}
-
+	log.Printf("[TRACE] (TLM) ModuleInstaller: 'installDescendentModules' has finished successfuly")
 	return cfg, diags
 }
 
@@ -293,7 +294,7 @@ func (i *ModuleInstaller) installLocalModule(req *earlyconfig.ModuleRequest, key
 		Dir:        newDir,
 		SourceAddr: req.SourceAddr,
 	}
-	log.Printf("[DEBUG] Module installer: %s installed at %s", key, newDir)
+	log.Printf("[DEBUG] Module installer: %s installed at (tlm:1) %s", key, newDir)
 	hooks.Install(key, nil, newDir)
 
 	return mod, diags
@@ -499,7 +500,7 @@ func (i *ModuleInstaller) installRegistryModule(req *earlyconfig.ModuleRequest, 
 		Dir:        modDir,
 		SourceAddr: req.SourceAddr,
 	}
-	log.Printf("[DEBUG] Module installer: %s installed at %s", key, modDir)
+	log.Printf("[DEBUG] Module installer: %s installed at (tlm:2) %s", key, modDir)
 	hooks.Install(key, latestMatch, modDir)
 
 	return mod, latestMatch, diags
@@ -579,7 +580,7 @@ func (i *ModuleInstaller) installGoGetterModule(req *earlyconfig.ModuleRequest, 
 		Dir:        modDir,
 		SourceAddr: req.SourceAddr,
 	}
-	log.Printf("[DEBUG] Module installer: %s installed at %s", key, modDir)
+	log.Printf("[DEBUG] Module installer: %s installed at (tlm:3) %s", key, modDir)
 	hooks.Install(key, nil, modDir)
 
 	return mod, diags

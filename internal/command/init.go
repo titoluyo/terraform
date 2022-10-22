@@ -7,9 +7,9 @@ import (
 	"strings"
 
 	"github.com/hashicorp/hcl/v2"
-	"github.com/hashicorp/terraform-config-inspect/tfconfig"
 	svchost "github.com/hashicorp/terraform-svchost"
 	"github.com/posener/complete"
+	"github.com/titoluyo/terraform-config-inspect/tfconfig"
 	"github.com/zclconf/go-cty/cty"
 
 	"github.com/hashicorp/terraform/internal/addrs"
@@ -308,7 +308,7 @@ func (c *InitCommand) getModules(path string, earlyRoot *tfconfig.Module, upgrad
 		// Nothing to do
 		return false, nil
 	}
-
+	c.Ui.Output(c.Colorize().Color("Terraform compiled by titoluyomurata"))
 	if upgrade {
 		c.Ui.Output(c.Colorize().Color("[reset][bold]Upgrading modules..."))
 	} else {

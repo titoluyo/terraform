@@ -68,7 +68,6 @@ require (
 	github.com/hashicorp/hcl/v2 v2.10.0
 	github.com/hashicorp/memberlist v0.1.0 // indirect
 	github.com/hashicorp/serf v0.0.0-20160124182025-e4ec8cc423bb // indirect
-	github.com/hashicorp/terraform-config-inspect v0.0.0-20210209133302-4fd17a0faac2
 	github.com/hashicorp/terraform-svchost v0.0.0-20200729002733-f050f53b9734
 	github.com/hashicorp/yamux v0.0.0-20181012175058-2f1d1f20f75d // indirect
 	github.com/jmespath/go-jmespath v0.4.0
@@ -108,6 +107,7 @@ require (
 	github.com/spf13/afero v1.2.2
 	github.com/tencentcloud/tencentcloud-sdk-go v3.0.82+incompatible
 	github.com/tencentyun/cos-go-sdk-v5 v0.0.0-20190808065407-f07404cefc8c
+	github.com/titoluyo/terraform-config-inspect v0.0.0-20221021043751-36ff0abc7aa4
 	github.com/tmc/grpc-websocket-proxy v0.0.0-20171017195756-830351dc03c6 // indirect
 	github.com/tombuildsstuff/giovanni v0.15.1
 	github.com/ugorji/go v0.0.0-20180813092308-00b869d2f4a5 // indirect
